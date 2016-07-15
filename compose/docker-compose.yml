@@ -1,0 +1,37 @@
+version: '2'
+
+services:
+
+  storage:
+    image: busybox
+    volumes: 
+      - /data/docker-volumes/registry:/var/lib/registry
+    environment:
+      - "constraint:node==dh-store"
+    container_name: data-container
+    networks:
+      - front-tier
+    command: ping 127.0.0.1
+
+
+  registry:
+    restart: always
+    image: registry:2
+    ports:
+      - 5000:5000 
+    volumes_from:
+      - storage
+    environment:
+      - "constraint:node==dh-store"
+    extra_hosts:
+      - "localregistry:127.0.0.1"
+    networks:
+      - front-tier
+
+networks:
+  front-tier:
+    driver: bridge
+  back-tier:
+    driver: bridge
+    
+
