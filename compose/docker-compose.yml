@@ -2,36 +2,35 @@ version: '2'
 
 services:
 
-  storage:
+# Provides local storage for registry container. Note the contraint, in the current release data-container has to be on the same node where used
+  storage_registry:
     image: busybox
     volumes: 
       - /data/docker-volumes/registry:/var/lib/registry
     environment:
-      - "constraint:node==dh-store"
+      - "constraint:nodename==dh-registry"
     container_name: data-container
     networks:
-      - front-tier
+     - overlay-net
     command: ping 127.0.0.1
 
 
+# Provides local registry service to host images within the firewall.
   registry:
     restart: always
     image: registry:2
     ports:
-      - 5000:5000 
+      - "5000:5000"
     volumes_from:
-      - storage
+       - storage_registry
     environment:
-      - "constraint:node==dh-store"
+      - "constraint:nodename==dh-registry"
     extra_hosts:
       - "localregistry:127.0.0.1"
     networks:
-      - front-tier
+      - overlay-net
+    container_name: registry-container
 
 networks:
-  front-tier:
-    driver: bridge
-  back-tier:
-    driver: bridge
-    
-
+  overlay-net:
+    driver: overlay
