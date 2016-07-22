@@ -3,16 +3,17 @@ version: '2'
 services:
 
 # Provides local storage for registry container. Note the contraint, in the current release data-container has to be on the same node where used
-  storage_registry:
+  storage-registry:
     image: busybox
     volumes: 
       - /data/docker-volumes/registry:/var/lib/registry
     environment:
-      - "constraint:nodename==dh-registry"
-    container_name: data-container
+      - constraint:node==dockerhost-registry
+    container_name: registry-data-container
     networks:
-     - overlay-net
-    command: ping 127.0.0.1
+      - overlay-net
+  #  command: ping 127.0.0.1
+    hostname: storage-registry
 
 
 # Provides local registry service to host images within the firewall.
@@ -22,14 +23,104 @@ services:
     ports:
       - "5000:5000"
     volumes_from:
-       - storage_registry
+      - storage-registry
     environment:
-      - "constraint:nodename==dh-registry"
+      - constraint:node==dockerhost-registry
     extra_hosts:
-      - "localregistry:127.0.0.1"
+      - "registry:127.0.0.1"
     networks:
       - overlay-net
-    container_name: registry-container
+    container_name: registry
+    hostname: registry
+
+
+#------------------end of registry service -----------------------------------------------------------------
+
+# Provides local storage for rundeck container.
+
+  storage-rundeck:
+    image: busybox
+    volumes: 
+      - /data/docker-volumes/rundeck/etc/rundeck:/etc/rundeck
+      - /data/docker-volumes/rundeck/var/rundeck:/var/rundeck
+      - /data/docker-volumes/rundeck/var/lib/rundeck/.ssh:/var/lib/rundeck/.ssh
+      - /data/docker-volumes/rundeck/var/lib/mysql:/var/lib/mysql
+      - /data/docker-volumes/rundeck/var/log/rundeck:/var/log/rundeck
+      - /data/docker-volumes/rundeck/opt/rundeck-plugins:/opt/rundeck-plugins
+
+    environment:
+      - constraint:node==dockerhost-rundeck
+    container_name: rundeck-data-container
+    networks:
+      - overlay-net
+    #command: ping 127.0.0.1
+    hostname: storage-rundeck
+
+
+# Service to start rundeck container with file-system 
+  rundeck:
+    restart: always
+    image: jordan/rundeck:latest
+    ports:
+      - "4440:4440"
+    volumes_from:
+      - storage-rundeck
+    environment:
+      - constraint:node==dockerhost-rundeck
+      - SERVER_URL=http://localhost:4440
+    networks:
+      - overlay-net
+    container_name: rundeck
+    hostname: rundeck
+
+
+#------------------end of rundeck service -----------------------------------------------------------------
+
+
+# Provides local storage for application containers.
+  storage-worker:
+    image: busybox
+    volumes: 
+      - /data/docker-volumes/workers/worker_1/root:/root/
+      - /data/docker-volumes/workers/worker_2/root:/root/
+      
+    environment:
+      - constraint:node==dockerhost-worker
+    container_name: worker-data-container
+    networks:
+      - overlay-net
+   # command: ping 127.0.0.1
+    hostname: storage-worker
+
+
+# Service worker_1 for running the application  ( node-1)
+  worker_1:
+    restart: always
+    image: rastasheep/ubuntu-sshd
+    volumes_from:
+      - storage-worker
+    environment:
+      - constraint:node==dockerhost-worker
+    networks:
+      - overlay-net
+    container_name: worker_1
+    hostname: worker_1
+
+# Service worker_1 for running the application  ( node-1)
+  worker_2:
+    restart: always
+    image: rastasheep/ubuntu-sshd
+    volumes_from:
+      - storage-worker
+    environment:
+      - constraint:node==dockerhost-worker
+    networks:
+      - overlay-net
+    container_name: worker_2
+    hostname: worker_2
+
+#------------------end of worker service -----------------------------------------------------------------
+
 
 networks:
   overlay-net:
