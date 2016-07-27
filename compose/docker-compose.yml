@@ -10,6 +10,8 @@ services:
       - '/data/docker-volumes/gitlab/etc/gitlab:/etc/gitlab'
       - '/data/docker-volumes/gitlab/var/log/gitlab:/var/log/gitlab'
       - '/data/docker-volumes/gitlab/var/opt/gitlab:/var/opt/gitlab'
+      - '/data/docker-volumes/gitlab/var/log/gitlab/reconfigure:/var/log/gitlab/reconfigure'
+
     environment:
       - constraint:node==dockerhost-registry
     container_name: gitlab-data-container
@@ -23,16 +25,23 @@ services:
     depends_on:
       - storage-gitlab
     restart: always
-    hostname: 'gitlab.localhost'
-    environment:
+    hostname: 'localhost'
+    # environment:
+    #   - constraint:node==dockerhost-registry
+     
+    environment: 
       - constraint:node==dockerhost-registry
+
     ports:
-      - "6080:9090"
+      - '6080:9080'
+      - '2443:443'
+      - '2226:22'
+
     volumes_from:
       - storage-gitlab:rw
     networks:
       - overlay-net
-    
+    container_name: gitlab
   
 #------------------------------end of gitlab-ce -------------------------------------------------------
 
@@ -205,6 +214,9 @@ services:
 
     networks:
       - overlay-net
+
+    container_name: tomcat
+
 
 #------------------end of worker (tomcat) service -----------------------------------------------------------------
 

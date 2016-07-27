@@ -43,7 +43,13 @@ docker network ls
 docker rm compose_worker_1  registry registry-data-container rundeck-data-container rundeck worker-data-container --force
 
 @REM - Docker Compose up - build from Dockerfile and spin up containers, networks, storage etc
-docker-compose -f compose/docker-compose.yml  up  -d 
+
+
+
+docker-compose -f compose/docker-compose.yml  stop storage-registry  storage-rundeck  storage-worker storage-gitlab
+docker-compose -f compose/docker-compose.yml  stop registry  rundeck  worker gitlab
+docker-compose -f compose/docker-compose.yml  rm -f
+docker-compose -f compose/docker-compose.yml  up -d 
 
 
 @REM ----------------------------
@@ -78,6 +84,10 @@ docker-machine scp rundeck/resources.xml dockerhost-rundeck:/tmp/
 @REM  PASS=root
 
 @REM echo -e "$PASS\n$PASS" | docker exec -i rd-node-1 passwd
+
+@REM $ docker volume rm $(docker volume ls -qf dangling=true)
+
+
 
 
 
