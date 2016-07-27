@@ -2,6 +2,46 @@ version: '2'
 
 services:
 
+#------------------------------start of gitlab-ce ------------------------------------------------------
+
+  storage-gitlab:
+    image: busybox
+    volumes: 
+      - '/data/docker-volumes/gitlab/etc/gitlab:/etc/gitlab'
+      - '/data/docker-volumes/gitlab/var/log/gitlab:/var/log/gitlab'
+      - '/data/docker-volumes/gitlab/var/opt/gitlab:/var/opt/gitlab'
+    environment:
+      - constraint:node==dockerhost-registry
+    container_name: gitlab-data-container
+    command: tail -f /dev/null
+    hostname: storage-gitlab
+    networks:
+      - overlay-net
+
+  gitlab:
+    image: 'gitlab/gitlab-ce:latest'
+    depends_on:
+      - storage-gitlab
+    restart: always
+    hostname: 'gitlab.localhost'
+    environment:
+      - constraint:node==dockerhost-registry
+    ports:
+      - "6080:9090"
+    volumes_from:
+      - storage-gitlab:rw
+    networks:
+      - overlay-net
+    
+  
+#------------------------------end of gitlab-ce -------------------------------------------------------
+
+
+
+
+#------------------------------start of regisry -------------------------------------------------------
+
+
 # Provides local storage for registry container. Note the contraint, in the current release data-container has to be on the same node where used
   storage-registry:
     image: busybox
@@ -12,7 +52,7 @@ services:
     container_name: registry-data-container
     networks:
       - overlay-net
-  #  command: ping 127.0.0.1
+    command: tail -f /dev/null
     hostname: storage-registry
 
 
@@ -20,21 +60,64 @@ services:
   registry:
     restart: always
     image: registry:2
+    depends_on:
+      - storage-registry
     ports:
       - "5000:5000"
     volumes_from:
-      - storage-registry
+      - storage-registry:rw
     environment:
       - constraint:node==dockerhost-registry
-    extra_hosts:
-      - "registry:127.0.0.1"
     networks:
       - overlay-net
     container_name: registry
     hostname: registry
 
 
-#------------------end of registry service -----------------------------------------------------------------
+#------------------------------end of regisry -------------------------------------------------------
+
+
+
+
+#------------------ start of jenkins service ---------------------------------------------------------
+
+  storage-jenkins:
+    image: busybox
+    volumes:
+      - /data/docker-volumes/jenkins/var/jenkins_home:/var/jenkins_home
+    command: ["chown", "-v", "-R", "1000:1000", "/var/jenkins_home"]
+    environment:
+      - constraint:node==dockerhost-registry
+    networks:
+      - overlay-net
+    container_name: jenkins-data-container
+    hostname: storage-jenkins
+
+  jenkins:
+    image: jenkins
+    depends_on:
+      - storage-jenkins
+    restart: always
+    ports:
+      - "7080:8080"
+      - "50000:50000"
+    volumes_from:
+      - storage-jenkins
+    environment:
+      - constraint:node==dockerhost-registry
+      - JAVA_OPTS=-Xmx512m
+    networks:
+      - overlay-net
+    container_name: jenkins
+
+
+
+#------------------end of jenkins service -----------------------------------------------------------------
+
+
+
+#------------------start of rundec service -----------------------------------------------------------------
+
 
 # Provides local storage for rundeck container.
 
@@ -47,24 +130,27 @@ services:
       - /data/docker-volumes/rundeck/var/lib/mysql:/var/lib/mysql
       - /data/docker-volumes/rundeck/var/log/rundeck:/var/log/rundeck
       - /data/docker-volumes/rundeck/opt/rundeck-plugins:/opt/rundeck-plugins
+      - /tmp/private-ssh-keys/:/tmp/private-ssh-keys/
 
     environment:
       - constraint:node==dockerhost-rundeck
     container_name: rundeck-data-container
     networks:
       - overlay-net
-    #command: ping 127.0.0.1
+    command: tail -f /dev/null
     hostname: storage-rundeck
 
 
 # Service to start rundeck container with file-system 
   rundeck:
     restart: always
-    image: jordan/rundeck:latest
+    image: jordan/rundeck:2.6.8
+    depends_on:
+      - storage-rundeck
     ports:
       - "4440:4440"
     volumes_from:
-      - storage-rundeck
+      - storage-rundeck:rw
     environment:
       - constraint:node==dockerhost-rundeck
       - SERVER_URL=http://localhost:4440
@@ -73,53 +159,54 @@ services:
     container_name: rundeck
     hostname: rundeck
 
-
 #------------------end of rundeck service -----------------------------------------------------------------
 
 
+
+#------------------start of worker (tomcat) service -----------------------------------------------------------------
+
+
 # Provides local storage for application containers.
+
   storage-worker:
     image: busybox
     volumes: 
-      - /data/docker-volumes/workers/worker_1/root:/root/
-      - /data/docker-volumes/workers/worker_2/root:/root/
-      
+      - /data/docker-volumes/tomcat/tmp:/tmp
+      - /data/docker-volumes/tomcat/logs:/logs
+      - /data/docker-volumes/tomcat/var:/var
+
     environment:
       - constraint:node==dockerhost-worker
     container_name: worker-data-container
     networks:
       - overlay-net
-   # command: ping 127.0.0.1
+    command: tail -f /dev/null
     hostname: storage-worker
 
 
-# Service worker_1 for running the application  ( node-1)
-  worker_1:
+# Service worker for running the application  ( node-1)
+  worker:
     restart: always
-    image: rastasheep/ubuntu-sshd
-    volumes_from:
+    privileged: true
+    build: ../application/tomcat
+    image: tomcat
+    depends_on:
       - storage-worker
+    volumes_from:
+      - storage-worker:rw
     environment:
       - constraint:node==dockerhost-worker
+      - CATALINA_OUT /logs/catalina.out
+
+    ports:
+      - "9080:8080"
+
+  #  command: /opt/tomcat/bin/catalina.sh run
+
     networks:
       - overlay-net
-    container_name: worker_1
-    hostname: worker_1
 
-# Service worker_1 for running the application  ( node-1)
-  worker_2:
-    restart: always
-    image: rastasheep/ubuntu-sshd
-    volumes_from:
-      - storage-worker
-    environment:
-      - constraint:node==dockerhost-worker
-    networks:
-      - overlay-net
-    container_name: worker_2
-    hostname: worker_2
-
-#------------------end of worker service -----------------------------------------------------------------
+#------------------end of worker (tomcat) service -----------------------------------------------------------------
 
 
 networks:

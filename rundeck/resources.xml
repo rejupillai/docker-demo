@@ -2,5 +2,8 @@
 
 <project>
   <node name="localhost" description="Rundeck server node" tags="" hostname="localhost" osArch="amd64" osFamily="unix" osName="Linux" osVersion="4.4.15-boot2docker" username="rundeck"/>
+  <node name="worker_1" ssh-keypath="/tmp/private-ssh-keys/worker_1.key" description="Worker_1" tags="" hostname="10.0.0.6" osArch="amd64" osFamily="unix" osName="Linux" osVersion="4.4.15-boot2docker" username="root"/>
+  <node name="worker_2" ssh-keypath="/tmp/private-ssh-keys/worker_2.key" description="Worker_2" tags="" hostname="10.0.0.8" osArch="amd64" osFamily="unix" osName="Linux" osVersion="4.4.15-boot2docker" username="root"/>
+  <node name="worker_3" ssh-keypath="/tmp/private-ssh-keys/worker_3.key" description="Worker_3" tags="" hostname="10.0.0.9" osArch="amd64" osFamily="unix" osName="Linux" osVersion="4.4.15-boot2docker" username="root"/>
 </project>
 
